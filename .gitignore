@@ -2,5 +2,6 @@ Assignments
 Submissions
 .DS_Store
 
-.idea
+.idea/workspace.xml
+.idea/tasks.xml
 out
