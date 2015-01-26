@@ -1,5 +1,6 @@
 package com.labs.ten;
 
+import java.util.Arrays;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -15,6 +16,7 @@ public class Main {
     public static Timer timer = new Timer();
     public static boolean running = true;
     public static Random random = new Random();
+    public static int max_size;
 
     // Simulation variables
     public static ExecutorService pool;
@@ -24,9 +26,13 @@ public class Main {
     public static DragonParents[] consumers = new DragonParents[consumerCount];
     public static DragonBirthRegister queue;
 
+    // PART 1: Run the program with max size (for the queue) argument i.e. 10
+    // PART 2: Run the program without any max size
     public static void main(String[] args) {
+        if(args.length > 0) max_size = Integer.parseInt(args[0]);
+
         // Create the FIFO queue
-        queue = new DragonBirthRegister();
+        queue = new DragonBirthRegister(max_size);
 
         // Create a thread pool
         pool = Executors.newFixedThreadPool(4);
@@ -37,18 +43,20 @@ public class Main {
         for(int i = 0; i < consumerCount; i++) consumers[i] = new DragonParents(i, queue);
 
         System.out.println("Starting simulation.");
-        System.out.println("Legend: <- consumes, -> produces, [--] queue, * item in queue, - free space in queue, [consumer|producer:<id>:<thread id>]");
+        System.out.println("Legend: [<thread name>], <- consumes, -> produces, * item in queue, - free space in queue");
 
         int iterations = 0; // Keep count of the iterations
         while(running && ++iterations > 0) {
-            System.out.println(String.format("-- Iteration #%d --", iterations));
+            // I was printing out the iteration count but it's quite useless.
+            // System.out.println(String.format("-- Iteration #%d --", iterations));
 
             // Execute the producer and consumer threads randomly
             pool.submit(producers[random.nextInt(producers.length)]);
 
-            // Delay the consumer until the producer adds some content
-            if(iterations > 5)
-                pool.submit(consumers[random.nextInt(consumers.length)]);
+            // It takes 300ms longer to consume than to produce so
+            // when the thread pool is full, content should be produced
+            // at a higher rate than it is consumed.
+            pool.submit(consumers[random.nextInt(consumers.length)]);
 
             // Delay each iteration
             // See Note 2

@@ -16,10 +16,10 @@ public class DragonParents implements Runnable {
 
     @Override
     public void run() {
-        String name = this.dbr.getName(); // Consume something from the queue
-        System.out.println(String.format("[consumer:#%d:%s] <- %s", this.id, Thread.currentThread().getName(), name));
+        // Simulate doing something like going to the dragon birth office etc. idk
+        try { Thread.sleep(2000); } catch(InterruptedException i) { System.out.println("Whoops. Dragons interrupted from sleeping."); }
 
-        // Wait a while before getting preggers again
-        try { Thread.sleep(500); } catch(InterruptedException i) { System.out.println("Whoops. Dragons interrupted from sleeping."); }
+        String name = this.dbr.getName(); // Consume something from the queue
+//        System.out.println(String.format("[consumer:#%d:%s] <- %s", this.id, Thread.currentThread().getName(), name));
     }
 }
