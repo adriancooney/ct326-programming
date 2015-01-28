@@ -1,6 +1,7 @@
 package com.labs.ten;
 
 import java.util.ArrayDeque;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -11,6 +12,9 @@ import java.util.concurrent.locks.ReentrantLock;
 public class DragonBirthRegister {
     public ArrayDeque<String> register = new ArrayDeque<String>();
     private final Lock lock = new ReentrantLock();
+    private final Condition notFull = lock.newCondition();
+    private final Condition notEmpty = lock.newCondition();
+
     public int maxSize = 0;
 
     public DragonBirthRegister(int size) {
@@ -21,86 +25,90 @@ public class DragonBirthRegister {
      * Add a name to the queue.
      * @param name
      */
-    public synchronized void addName(String name) {
-//        lock.lock(); // Lock this thread
+    public void addName(String name) throws InterruptedException {
+        try {
+            // Attempt to get the lock
+            lock.lock();
 
-        if(this.maxSize > 0) { // If it has a max size, make sure it's not exceeding
-            if(this.register.size() >= maxSize) {
-                try { // If the actual size is equal to the max
-                    System.out.println(String.format("[!] Queue full! Waiting on space. Postponing adding '%s' on thread [%s].", name, Thread.currentThread().getName()));
+            if (this.maxSize > 0) { // If it has a max size, make sure it's not exceeding
+                if (this.register.size() >= maxSize) {// If the actual size is equal to the max
+                    System.out.println(String.format("[!] Queue full! Waiting on space. Postponing addition of '%s' to queue on thread [%s].", name, Thread.currentThread().getName()));
 
                     while (this.register.size() >= maxSize)
-                        wait(); // Wait for space on the register
+                        notFull.await(); // Wait for space on the register (i.e. wait for it to be "notFull")
 
                     System.out.println(String.format("[+] Item in queue for thread [%s].", Thread.currentThread().getName()));
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 }
             }
+
+
+            // Add to the register
+            register.add(name);
+
+            // Print out some stats
+            System.out.println(String.format("%s << \"%s\" [%s]", prettyPrintQueue(), name, Thread.currentThread().getName()));
+
+            // Notify any consumers waiting on content
+            notEmpty.signal();
+
+        } finally {
+            // Unlock regardless of any error
+            lock.unlock();
         }
-
-        System.out.println(String.format("[%s] -> %s", Thread.currentThread().getName(), name));
-
-        // Add to the register
-        register.add(name);
-
-        prettyPrintQueue();
-
-        notifyAll(); // Notify any threads waiting on data that there is some in the queue on the current object
-
-//        lock.unlock(); // Unlock
-
     }
 
     /**
      * Get a name from the queue.
      * @return
      */
-    public synchronized String getName() {
-//        lock.lock(); // Lock the thread, pull out the name from the register
+    public String getName() throws InterruptedException {
 
-        if(this.register.size() <= 0) { // If there's no items in the queue, wait for items
-            try {
+        try {
+            lock.lock(); // Lock the thread, pull out the name from the register
+
+            if (this.register.size() <= 0) { // If there's no items in the queue, wait for items
                 System.out.println(String.format("[!] Queue empty! Waiting on data. Holding thread [%s] up.", Thread.currentThread().getName()));
 
-                while(this.register.size() <= 0)
-                    wait();
+                // Constantly check to see if there is data in the register
+                while (this.register.size() <= 0)
+                    notEmpty.await(); // And wait on it being "notEmpty"
 
-                System.out.println(String.format("[+] Item pushed into queue for thread [%s].", Thread.currentThread().getName()));
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println(String.format("[+] Item pushed into queue, consuming in thread [%s].", Thread.currentThread().getName()));
             }
+
+            // Grab some data from the queue
+            String name = Main.CURRENT_PART == Main.Parts.ONE ? register.pollFirst() : register.pollLast();
+
+            // Print out some stats
+            System.out.println(String.format("%s >> \"%s\" [%s]", prettyPrintQueue(), name, Thread.currentThread().getName()));
+
+
+            // Notify that there is space in the queue
+            notFull.signal();
+
+            return name;
+        } finally {
+            lock.unlock();
         }
-
-        // Grab some data from the queue
-        String name = register.poll();
-
-        System.out.println(String.format("[%s] <- %s", Thread.currentThread().getName(), name));
-        prettyPrintQueue();
-
-        // Notify that there is space in the queue
-        notifyAll();
-
-//        lock.unlock();
-
-        return name;
     }
 
     /**
      * Pretty print the queue with stars and brackets.
      *
      * e.g. [********-----------]
+     *
+     * @param width The width of the outputted queue
      */
-    public void prettyPrintQueue() {
+    public String prettyPrintQueue(int width) {
         String log = "[";
         int size = this.register.size();
-        int width = maxSize > 0 ? maxSize : 20;
+        width = maxSize > 0 ? maxSize : width;
 
         for(int i = 0; i < width; i++)
             log += i < size ? "*" : "-";
 
-        log += "]";
-
-        System.out.println(log);
+        return log + (maxSize <= 0 ? ":::" : "") + "]";
     }
+
+    public String prettyPrintQueue() { return prettyPrintQueue(20); }
 }

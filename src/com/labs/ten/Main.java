@@ -10,10 +10,33 @@ import java.util.concurrent.Executors;
 /**
  * Adrian Cooney (12394581)
  * 19/01/15 com.labs.ten
+ *
+ * # Question
+ *
+ * Part 1:
+ * Implement a FIFO queue up to some bounded maximum size to hold String objects that can
+ * be accessed by multiple Producer and Consumer threads. The Producer threads produce String
+ * objects while the Consumer threads consume these objects. Every String object produced must
+ * be consumed exactly once.  Use the ReentrantLock class and Condition variables in your
+ * implementation. Write an application class that create a random number of Producer and
+ * Consumer threads at startup to test your implementation.
+ *
+ * Print out queue statistics e.g. number of items in the queue and
+ * thread access details as the simulation progresses.
+ *
+ * Part 2:
+ * Modify the code in Part 1, so that there is no bounds on the size of the stack (LIFO).
+ * Tip: use a List instead of arrays.
  */
 public class Main {
+    public static enum Parts {
+        ONE, TWO
+    }
+
+    // Edit to change which part of the question is running
+    public static final Parts CURRENT_PART = Parts.TWO;
+
     // Simulation control
-    public static Timer timer = new Timer();
     public static boolean running = true;
     public static Random random = new Random();
     public static int max_size;
@@ -26,15 +49,15 @@ public class Main {
     public static DragonParents[] consumers = new DragonParents[consumerCount];
     public static DragonBirthRegister queue;
 
-    // PART 1: Run the program with max size (for the queue) argument i.e. 10
-    // PART 2: Run the program without any max size
     public static void main(String[] args) {
-        if(args.length > 0) max_size = Integer.parseInt(args[0]);
+        if(CURRENT_PART == Parts.ONE)
+            max_size = 3; // Set the queue size to be small to demonstrate being full and empty
 
         // Create the FIFO queue
         queue = new DragonBirthRegister(max_size);
 
         // Create a thread pool
+        // Four is a good number of threads to demonstrate the blocking.
         pool = Executors.newFixedThreadPool(4);
 
         // Create the producer and consumer threads
@@ -42,43 +65,33 @@ public class Main {
         for(int i = 0; i < producerCount; i++) producers[i] = new DragonBabyNamer(i, queue);
         for(int i = 0; i < consumerCount; i++) consumers[i] = new DragonParents(i, queue);
 
-        System.out.println("Starting simulation.");
-        System.out.println("Legend: [<thread name>], <- consumes, -> produces, * item in queue, - free space in queue");
+        System.out.println(String.format("Starting simulation for part %d. Production is faster than consumption. For each production, there is one consumption.", CURRENT_PART == Parts.ONE ? 1 : 2));
+        System.out.println("Legend: [<thread name>], << consumes, >> produces, * item in queue, - free space in queue");
 
         int iterations = 0; // Keep count of the iterations
         while(running && ++iterations > 0) {
-            // I was printing out the iteration count but it's quite useless.
-            // System.out.println(String.format("-- Iteration #%d --", iterations));
-
-            // Execute the producer and consumer threads randomly
+            // Pick and execute the producer and consumer threads randomly
             pool.submit(producers[random.nextInt(producers.length)]);
-
-            // It takes 300ms longer to consume than to produce so
-            // when the thread pool is full, content should be produced
-            // at a higher rate than it is consumed.
             pool.submit(consumers[random.nextInt(consumers.length)]);
-
-            // Delay each iteration
-            // See Note 2
-            try { Thread.sleep(200); } catch(InterruptedException e) {}
 
             // Stop the simulation after 25 iterations
             if(iterations > 25) {
-                System.out.println("Simulation over.");
+                System.out.println("Tasks pushed into queue.");
                 running = false;
             }
         }
 
-        System.out.println("Shutting down thread pool. Some scheduled task may continue to execute hereafter.");
+        System.out.println("Shutting down thread pool. Scheduled tasks will continue to execute hereafter.");
 
         // And empty the pool thereafter
         pool.shutdown();
 
         // Note 1:
         // Having multiple different instances of consumer/producer classes is redundant since they're each
-        // functionally identical in this example but I did it anyway, for show.
+        // functionally identical in this example but I did it anyway to demo.
 
         // Note 2:
+        // I discovered a problem in my first attempt at a timed simulation.
         // Not delaying the execution of the loop is a memory leak
         // since the `submit` schedules the task until a thread is
         // available and sticks it into some collection. The producer
@@ -92,21 +105,13 @@ public class Main {
         // Note 3:
         // The output looks like this:
         //
-        //      -- Iteration #8 --
-        //      [producer:#3] -> Draigoch
-        //      [queue] [****------------------------------------]
-        //      [consumer:#4] <- Elliott
-        //      [queue] [*****-----------------------------------]
-        //      -- Iteration #9 --
-        //      [producer:#9] -> Dulcy
-        //      [queue] [****------------------------------------]
-        //      [consumer:#1] <- Mizunoeryu
-        //      [queue] [*****-----------------------------------]
-        //
-        // It looks like it's adding and taking away with the loop block
-        // but it's actually from separate threads, they just finish
-        // their execution before the loop iterates onto the next cycle.
-        // You can denote different threads from [<thread type>:#<thread id>]
+        //    [*--] << "Ridley" [pool-1-thread-1]
+        //    [**-] << "Drogon" [pool-1-thread-3]
+        //    [***] << "Grandeeney" [pool-1-thread-1]
+        //    [!] Queue full! Waiting on space. Postponing addition of 'Rhaegal' to queue on thread [pool-1-thread-1].
+        //    [**-] >> "Ridley" [pool-1-thread-2]
+        //    [+] Item in queue for thread [pool-1-thread-1].
+        //    [***] << "Rhaegal" [pool-1-thread-1]
         //
         // This shows the thread locking by the linear sequence. Each
         // task is scheduled to be completed at the same time, yet the

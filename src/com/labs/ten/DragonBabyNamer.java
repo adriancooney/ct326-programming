@@ -71,10 +71,17 @@ public class DragonBabyNamer implements Runnable {
 
     @Override
     public void run() {
-        try { Thread.sleep(200); } catch(InterruptedException i) { System.out.println("Namer interrupted."); }
+        try {
+            // Simulate doing some work, you lazy dragons
+            Thread.sleep(500 + random.nextInt(1000));
 
-        String name = this.getDragonName();
-        this.dbr.addName(name);
-//        System.out.println(String.format("[producer:#%d:%s] -> %s", this.id, Thread.currentThread().getName(), name));
+            // Get the name
+            String name = this.getDragonName();
+
+            // Add something the queue
+            this.dbr.addName(name);
+        } catch(InterruptedException i) {
+            System.out.println("Namer interrupted.");
+        }
     }
 }
