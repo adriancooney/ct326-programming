@@ -77,7 +77,9 @@ public class DragonBirthRegister {
             }
 
             // Grab some data from the queue
-            String name = Main.CURRENT_PART == Main.Parts.ONE ? register.pollFirst() : register.pollLast();
+            String name;
+            if(Main.CURRENT_PART == Main.Parts.ONE) name = register.pollFirst();
+            else name = register.pollLast();
 
             // Print out some stats
             System.out.println(String.format("%s >> \"%s\" [%s]", prettyPrintQueue(), name, Thread.currentThread().getName()));
