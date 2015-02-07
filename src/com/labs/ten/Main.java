@@ -37,7 +37,6 @@ public class Main {
     public static final Parts CURRENT_PART = Parts.TWO;
 
     // Simulation control
-    public static boolean running = true;
     public static Random random = new Random();
     public static int max_size;
 
@@ -69,18 +68,13 @@ public class Main {
         System.out.println("Legend: [<thread name>], << consumes, >> produces, * item in queue, - free space in queue");
 
         int iterations = 0; // Keep count of the iterations
-        while(running && ++iterations > 0) {
+        while(++iterations < 25) {
             // Pick and execute the producer and consumer threads randomly
             pool.submit(producers[random.nextInt(producers.length)]);
             pool.submit(consumers[random.nextInt(consumers.length)]);
-
-            // Stop the simulation after 25 iterations
-            if(iterations > 25) {
-                System.out.println("Tasks pushed into queue.");
-                running = false;
-            }
         }
 
+        System.out.println("Tasks pushed into queue.");
         System.out.println("Shutting down thread pool. Scheduled tasks will continue to execute hereafter.");
 
         // And empty the pool thereafter
