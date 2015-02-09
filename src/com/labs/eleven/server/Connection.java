@@ -53,34 +53,9 @@ public class Connection implements Runnable {
      * Parse the incoming request.
      */
     public void parse(InputStream input) throws ProtocolException, IOException {
-        // Interesting use of the Scanner on the input stream.
-        Scanner data = new Scanner(input);
-        Protocol protocol = new Protocol();
-        Pattern rawDelimiter = Pattern.compile("^>{3}.*");
-        data.useDelimiter(" "); // Split the arguments by space
 
-        // Loop over each
-        int i = 0, position = 0; String chunk; boolean consuming = true;
-        while(consuming && i++ >= 0) {
-            // We have raw bytes, stop the argument pushing and push stream
-            if(data.hasNext()) {
-                chunk = data.next();
 
-                // Move the character pointer to the current
-                position += chunk.length();
 
-                // The first item is the command
-                if(i == 1) protocol.handleCommand(chunk);
-                // Test of the first three characters to see if they match ">>>" i.e. raw data
-                // for some reason, hasNext(pattern) wouldn't work
-                else if(rawDelimiter.matcher(chunk).matches()) {
-                    position += 3; // Account for the 3 >>>
-                    input.
-                }
-                // Anything thereafter is an argument
-                else protocol.handleArgument(chunk);
-            } else consuming = false;
-        }
     }
 
     /**
