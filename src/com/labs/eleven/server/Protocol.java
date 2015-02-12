@@ -4,6 +4,7 @@ import com.labs.common.Logger;
 import com.labs.eleven.server.command.*;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
@@ -27,8 +28,11 @@ public class Protocol {
     public void handleCommand(String command) throws ProtocolException {
         logger.log("New command created: %s", command);
 
+        // TODO: Dynamically include all commands
         switch(command) {
             case "LIST": this.command = new List(); break;
+            case "UPLOAD": this.command = new Upload(); break;
+            case "DOWNLOAD": this.command = new Download(); break;
             default:
                 throw new ProtocolException("Unknown command '" + command + "'.");
         }
@@ -46,6 +50,13 @@ public class Protocol {
 
         logger.log("Pushing argument: %s", argument);
         this.command.pushArgument(argument);
+    }
+
+    public void handleStream(InputStream input) throws ProtocolException {
+        if(this.command == null) throw new ProtocolException("Cannot push file to unknown command.");
+
+        logger.log("Pushing stream to command.");
+        this.command.pushStream(input);
     }
 
     /**
@@ -104,5 +115,13 @@ public class Protocol {
      */
     public static void fail(OutputStream output, String message) throws IOException {
         Protocol.send(output, "ERROR " + message);
+    }
+
+    /**
+     * Return the current command.
+     * @return
+     */
+    public Command getCommand() {
+        return command;
     }
 }

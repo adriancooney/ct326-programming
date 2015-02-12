@@ -59,12 +59,14 @@ public class Connection implements Runnable {
     public void parse(InputStream input, OutputStream out) throws Protocol.ProtocolException, IOException {
         logger.log("Parsing incoming request.");
 
+        Parser parser = new Parser();
+
         // Parse the request
-        Protocol request = Parser.parse(input, out);
+        Protocol request = parser.parse(input, out);
 
         logger.log("Executing request.");
 
-        // Execute the request (or command) however the protocol decided.
+        // Execute the request (or command) however the parser decided/parsed.
         request.execute();
 
         logger.log("Request complete. Closing connection.");

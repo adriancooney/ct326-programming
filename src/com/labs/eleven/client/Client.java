@@ -4,6 +4,7 @@ import com.labs.common.Logger;
 import org.apache.commons.io.IOUtils;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.text.DefaultCaret;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -51,6 +52,13 @@ public class Client extends JFrame {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         pack();
         setVisible(true);
+
+        // Initially refresh the UI
+        try {
+            refresh();
+        } catch (IOException e) {
+            error("IO Error!");
+        }
     }
 
     /**
@@ -95,6 +103,7 @@ public class Client extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane();
         scrollPane.setViewportView(consoleText);
+        consolePanel.add(new JLabel("Request Log"), BorderLayout.NORTH);
         consolePanel.add(scrollPane, BorderLayout.CENTER);
 
         // Add them
@@ -139,13 +148,32 @@ public class Client extends JFrame {
      * @return
      * @throws IOException
      */
-    private InputStream request(String data) throws IOException {
+    private InputStream request(String data, InputStream stream) throws IOException {
         Socket req = new Socket(host, port);
         DataOutputStream out = new DataOutputStream(req.getOutputStream());
-        out.write(data.getBytes());
-        out.write(" <<<>>> ".getBytes());
+        out.write(data.getBytes()); // Write the command
+
+        if(stream == null) {
+            // If we have no stream, just terminate
+            out.write("\4".getBytes());
+        } else {
+            out.write(" >>>".getBytes()); // Tell the server to expect raw bytes
+            IOUtils.copy(stream, out); // Pipe in the stream
+            out.close();
+            return null;
+        }
 
         return req.getInputStream();
+    }
+
+    /**
+     * Create a request without an output stream passed along.
+     * @param data
+     * @return
+     * @throws IOException
+     */
+    private InputStream request(String data) throws IOException {
+        return request(data, null);
     }
 
     /**
@@ -154,19 +182,55 @@ public class Client extends JFrame {
      * @return
      * @throws IOException
      */
-    private String command(String command) throws IOException {
+    private InputStream commandStream(String command, InputStream stream) throws IOException {
         logger.log("$ %s", command);
         consoleText.append("> " + command + "\n");
-        String data = IOUtils.toString(request(command));
+
+        // Make the request to the server, convert the response input stream to a string and print
+        return request(command, stream);
+    }
+
+    /**
+     * Create a command and return the input stream from the request.
+     * @param command
+     * @return
+     * @throws IOException
+     */
+    private InputStream commandStream(String command) throws IOException {
+        return commandStream(command, null);
+    }
+
+    /**
+     * Create a command and return the response as a string with a file stream.
+     * @param command
+     * @param stream
+     * @return
+     * @throws IOException
+     */
+    private String command(String command, InputStream stream) throws IOException {
+        InputStream input = commandStream(command, stream);
+
+        String data = IOUtils.toString(input);
+
         logger.log(data);
-        consoleText.append("< " + data + "\n");
+        consoleText.append(data + "\n");
+
         return data;
     }
 
-    private String listFiles() throws IOException {
-        return command("LIST");
+    /**
+     * Create a command without a stream.
+     * @param command
+     * @return
+     * @throws IOException
+     */
+    private String command(String command) throws IOException {
+        return command(command, null);
     }
 
+    /**
+     * On select event listener.
+     */
     protected void handleSelectButton() {
         logger.log("Selecting file.");
         try {
@@ -176,6 +240,9 @@ public class Client extends JFrame {
         }
     }
 
+    /**
+     * On upload event listener.
+     */
     protected void handleUploadButton() {
         logger.log("Uploading file.");
 
@@ -186,6 +253,9 @@ public class Client extends JFrame {
         }
     }
 
+    /**
+     * On refresh event listener.
+     */
     protected void handleRefreshButton() {
         logger.log("Refreshing.");
 
@@ -196,16 +266,30 @@ public class Client extends JFrame {
         }
     }
 
+    /**
+     * On download event listener.
+     */
     protected void handleDownloadButton() {
         logger.log("Downloading.");
 
         try {
-            download("/path/one.txt");
+            String selected = fileList.getSelectedValue().toString();
+
+            if(selected == null) {
+                error("No file selected.");
+                return;
+            }
+
+            download(selected);
         } catch (IOException e) {
             error("IO Exception");
         }
     }
 
+    /**
+     * Display an error dialog with a message.
+     * @param message
+     */
     protected void error(String message) {
         JOptionPane.showMessageDialog(this,
                 message,
@@ -213,29 +297,46 @@ public class Client extends JFrame {
                 JOptionPane.WARNING_MESSAGE);
     }
 
+    /**
+     * Refresh the file list.
+     * @throws IOException
+     */
     private void refresh() throws IOException {
-        String files = listFiles();
+        String files = command("LIST");
 
         fileList.setListData(files.split("\n"));
     }
 
+    /**
+     * Display a file chooser dialog and download the file from the server.
+     * @param path
+     * @throws IOException
+     */
     private void download(String path) throws IOException {
         JFileChooser chooser = new JFileChooser();
-        chooser.setCurrentDirectory(new java.io.File("."));
+        chooser.setCurrentDirectory(new File("."));
         chooser.setDialogTitle("Select directory to save file");
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         chooser.setAcceptAllFileFilterUsed(false);
 
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            System.out.println("getCurrentDirectory(): "
-                    +  chooser.getCurrentDirectory());
-            System.out.println("getSelectedFile() : "
-                    +  chooser.getSelectedFile());
+            File file = new File(path);
+            String filename = file.getName();
+            String outputPath = chooser.getSelectedFile() + "/" + filename;
+
+            File outputFile = new File(outputPath);
+            FileOutputStream fout = new FileOutputStream(outputFile);
+
+            IOUtils.copy(commandStream("DOWNLOAD /" + filename), fout);
         } else {
             System.out.println("No Selection ");
         }
     }
 
+    /**
+     * Select a file and set the label to the filename.
+     * @throws IOException
+     */
     private void select() throws IOException {
         JFileChooser chooser = new JFileChooser();
         chooser.setCurrentDirectory(new java.io.File("."));
@@ -243,11 +344,6 @@ public class Client extends JFrame {
         chooser.setAcceptAllFileFilterUsed(false);
 
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            System.out.println("getCurrentDirectory(): "
-                    +  chooser.getCurrentDirectory());
-            System.out.println("getSelectedFile() : "
-                    +  chooser.getSelectedFile());
-
             currentUploadFile = chooser.getSelectedFile();
             uploadLabel.setText(chooser.getName(currentUploadFile));
         } else {
@@ -255,15 +351,21 @@ public class Client extends JFrame {
         }
     }
 
+    /**
+     * Upload a file to the server.
+     * @throws IOException
+     */
     private void upload() throws IOException {
         if(currentUploadFile == null) {
             error("No file selected");
             return;
         }
 
-        FileInputStream fout = new FileInputStream(currentUploadFile);
-        String contents = IOUtils.toString(fout);
+        FileInputStream fin = new FileInputStream(currentUploadFile);
 
-        command("UPLOAD " + currentUploadFile.getName() + " " + contents);
+        commandStream("UPLOAD " + currentUploadFile.getName(), fin);
+
+        // Refresh the filelist
+        refresh();
     }
 }

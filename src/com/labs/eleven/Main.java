@@ -16,8 +16,10 @@ public class Main {
     public static Logger logger = new Logger("Main");
 
     public static void main(String[] args) {
-        Logger.enable("Client|Server");
         logger.log("Creating new TCP server in it's own thread.");
+
+        // Disable parser output
+        Logger.disable("Parser");
 
         // Create our server in it's own thread
         Thread server = new Thread(new Runnable() {

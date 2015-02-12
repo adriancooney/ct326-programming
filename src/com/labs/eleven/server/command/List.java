@@ -1,8 +1,19 @@
 package com.labs.eleven.server.command;
 
+import com.labs.common.Filesystem;
+
+import java.io.File;
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 
 /**
+ * LIST a file directory.
+ *
+ * Example:
+ *
+ *      LIST
+ *
  * Adrian Cooney (12394581)
  * 09/02/15 com.labs.eleven.server.command
  */
@@ -28,9 +39,10 @@ public class List extends Command {
      * @throws IOException
      */
     public String listDir(String separator) throws IOException {
-        return "/data/" + separator +
-                "/data/data.txt" + separator +
-                "/data/archive";
+        ArrayList<String> paths = Filesystem.gatherFiles((new File(BASE_DIR)).listFiles());
+        String output = "";
+        for(String path : paths) output += path + separator;
+        return output;
     }
 
     /**

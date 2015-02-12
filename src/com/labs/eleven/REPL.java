@@ -19,10 +19,10 @@ public class REPL {
         System.out.print("> ");
         String input;
         while((input = scanner.nextLine()) != null) {
-
+            Parser p = new Parser();
             try {
                 // Parse the request
-                Parser.parse(new ByteArrayInputStream(input.getBytes()), System.out).execute();
+                p.parse(new ByteArrayInputStream(input.getBytes()), System.out).execute();
             } catch (Protocol.ProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {

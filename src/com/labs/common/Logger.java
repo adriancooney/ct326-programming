@@ -8,7 +8,8 @@ import java.util.regex.Pattern;
  */
 public class Logger {
     private String namespace;
-    private static Pattern enabled;
+    private static Pattern enabled = Pattern.compile(".*");
+    private static Pattern disabled;
 
     /**
      * Static method to print out string with format. See @String.format
@@ -34,7 +35,7 @@ public class Logger {
      * @param arguments
      */
     public static void print(String namespace, String format, Object... arguments) {
-        if(enabled.matcher(namespace).matches())
+        if(enabled.matcher(namespace).matches() && !(disabled != null && disabled.matcher(namespace).matches()))
             print(formatNamespace(namespace) + " " + format, arguments);
     }
 
@@ -44,7 +45,7 @@ public class Logger {
      * @param message
      */
     public static void print(String namespace, String message) {
-        if(enabled.matcher(namespace).matches())
+        if(enabled.matcher(namespace).matches() && !(disabled != null && disabled.matcher(namespace).matches()))
             print(formatNamespace(namespace) + " " + message);
     }
 
@@ -54,6 +55,14 @@ public class Logger {
      */
     public static void enable(String pattern) {
         enabled = Pattern.compile(pattern);
+    }
+
+    /**
+     * Disable a specific namespace.
+     * @param pattern
+     */
+    public static void disable(String pattern) {
+        disabled = Pattern.compile(pattern);
     }
 
     /**

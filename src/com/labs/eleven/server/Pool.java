@@ -11,30 +11,30 @@ import java.util.concurrent.*;
 public class Pool extends ThreadPoolExecutor {
     private Logger logger = new Logger("Pool");
 
+    /**
+     * Create a new thread pool.
+     */
     public Pool() {
-        super(4, // core threads
-                5, // max threads
-                1, // timeout
-                TimeUnit.MINUTES, // timeout units
-                new LinkedBlockingQueue<Runnable>() // work queue
-        );
+        super(5, 5, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<Runnable>());
 
         logger.log("New pool created.");
     }
 
-    protected void terminated() {
-        try {
-            logger.log("Thread terminated.");
-        } finally {
-            super.terminated();
-        }
-    }
-
+    /**
+     * Log when a task has completed execution.
+     * @param t
+     * @param r
+     */
     protected void beforeExecute(Thread t, Runnable r) {
-        logger.log("Thread created.");
+        logger.log("Task started.");
         super.beforeExecute(t, r);
     }
 
+    /**
+     * Log when a task is completed.
+     * @param r
+     * @param t
+     */
     protected void afterExecute(Runnable r, Throwable t) {
         super.afterExecute(r, t);
         logger.log("Thread closed.");

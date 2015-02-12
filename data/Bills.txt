@@ -1,0 +1,27 @@
+Communial Bills
+---------------
+Internet
+	UPC -> €37 (Monthly)
+
+Electricity
+	ESB -> €1752 (Annual, http://www.bonkes.ie/compare-gas-electricity-prices/faq/)
+		-> €36.5 (Monthly)
+
+Waste
+	Council Wheelie Bins -> €229 (Annual, http://www.galwaycity.ie/AllServices/WasteManagement/WheelieBins/Bincharges/)
+		-> €19.10 (Monthly)
+
+Personal Bills
+--------------
+Rent
+	-> €80
+
+Totals
+------
+Utilities per person
+	-> (37 + 36.5 + 19.10)/5 = 18.50
+
+Total per week
+	-> 80 + 18.50 = €98.50
+
+
