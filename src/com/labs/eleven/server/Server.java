@@ -33,7 +33,7 @@ public class Server {
         this.port = port;
 
         logger.log("Creating new thread pool of size %d.", POOL_SIZE);
-        pool = Executors.newFixedThreadPool(POOL_SIZE);
+        pool = new Pool();
     }
 
     /**
@@ -45,32 +45,19 @@ public class Server {
         this.socket = new ServerSocket(this.port);
         logger.log("Listening on %s:%d", this.socket.getInetAddress(), this.socket.getLocalPort());
 
-        Socket sock;
-        while(true) {
+        Socket sock; int i = 0;
+        while(true && ++i > 0) {
             // Wait for a new connection
-            logger.log("Waiting on connection..");
+            logger.log("Waiting on " + (i > 1 ? "another " : "") + "connection..");
             sock = socket.accept();
+            logger.log("New incoming connection.");
 
+            // Create a new Connection instance for each client
             // Submit it to the thread pool. Hopefully there isn't too many clients and they aren't in a rush.
             pool.submit(new Connection(sock, new ConnectionDelegate() {
                 @Override
                 public void handleIOException(IOException io) {
                     logger.log("IO Exception in the server connection.");
-                }
-
-                @Override
-                void handleUpload(String filename, DataInputStream file) {
-
-                }
-
-                @Override
-                void handleDownload(String filename, DataOutputStream output) {
-
-                }
-
-                @Override
-                void handleList(DataOutputStream output) {
-
                 }
             }));
         }

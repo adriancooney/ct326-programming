@@ -1,11 +1,14 @@
 package com.labs.common;
 
+import java.util.regex.Pattern;
+
 /**
  * Adrian Cooney (12394581)
  * 07/02/15 com.labs.common
  */
 public class Logger {
     private String namespace;
+    private static Pattern enabled;
 
     /**
      * Static method to print out string with format. See @String.format
@@ -22,6 +25,44 @@ public class Logger {
      */
     public static void print(String message) {
         System.out.println(message);
+    }
+
+    /**
+     * Print with a namespace if enabled with format.
+     * @param namespace
+     * @param format
+     * @param arguments
+     */
+    public static void print(String namespace, String format, Object... arguments) {
+        if(enabled.matcher(namespace).matches())
+            print(formatNamespace(namespace) + " " + format, arguments);
+    }
+
+    /**
+     * Print with a namespace if enabled
+     * @param namespace
+     * @param message
+     */
+    public static void print(String namespace, String message) {
+        if(enabled.matcher(namespace).matches())
+            print(formatNamespace(namespace) + " " + message);
+    }
+
+    /**
+     * Enable different namespaces for logging.
+     * @param pattern
+     */
+    public static void enable(String pattern) {
+        enabled = Pattern.compile(pattern);
+    }
+
+    /**
+     * Format the namespace.
+     * @param namespace
+     * @return
+     */
+    public static String formatNamespace(String namespace) {
+        return "[" + namespace + "]";
     }
 
     /**
@@ -44,7 +85,7 @@ public class Logger {
      * @param arguments
      */
     public void log(String format, Object... arguments) {
-        print(getNamespace() + " " + format, arguments);
+        print(namespace, format, arguments);
     }
 
     /**
@@ -52,7 +93,7 @@ public class Logger {
      * @param message
      */
     public void log(String message) {
-        print(getNamespace() + " " + message);
+        print(namespace, message);
     }
 
     /**
@@ -61,13 +102,5 @@ public class Logger {
      */
     public void log(Exception ex) {
         log(ex.toString());
-    }
-
-    /**
-     * Get the namespace within it's string container.
-     * @return
-     */
-    private String getNamespace() {
-        return "[" + namespace + "]";
     }
 }

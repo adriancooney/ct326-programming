@@ -1,5 +1,11 @@
 package com.labs.eleven.server.command;
 
+import com.labs.common.Logger;
+import com.labs.eleven.server.Connection;
+import com.labs.eleven.server.Protocol;
+
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 
 /**
@@ -10,11 +16,19 @@ public abstract class Command {
     public String name;
     private int argumentCount = 0;
     private ArrayList<String> arguments;
+    protected Logger logger;
+    protected OutputStream output;
 
-    public abstract void run();
+    public abstract void execute() throws IOException;
 
     public Command(String name) {
+        logger = new Logger("Command->" + name);
+        arguments = new ArrayList<>();
         setName(name);
+    }
+
+    public void setOutput(OutputStream output) {
+        this.output = output;
     }
 
     public void setName(String name) {
@@ -34,5 +48,17 @@ public abstract class Command {
     public String getArgument(int index) {
         if(index <= argumentCount) return arguments.get(index);
         else return null;
+    }
+
+    public void success() throws IOException {
+        Protocol.success(output);
+    }
+
+    public void fail() throws IOException {
+        Protocol.success(output);
+    }
+
+    public void send(String data) throws IOException {
+        Protocol.send(output, data);
     }
 }

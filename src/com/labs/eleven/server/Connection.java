@@ -2,11 +2,9 @@ package com.labs.eleven.server;
 
 import com.labs.common.Logger;
 import com.labs.eleven.server.ConnectionDelegate;
+import org.apache.commons.io.IOUtils;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
 import java.util.regex.Pattern;
@@ -16,10 +14,12 @@ import java.util.regex.Pattern;
  * 07/02/15 com.labs.eleven
  */
 public class Connection implements Runnable {
+    private Logger logger;
     private ConnectionDelegate delegate;
     private Socket connection;
-    private DataInputStream in;
-    private DataOutputStream out;
+    private InputStream in;
+    private OutputStream out;
+    private static int connections = 0;
 
     /**
      * Class instantiated upon a new connection to the server. This class
@@ -30,79 +30,46 @@ public class Connection implements Runnable {
      * @param connection The socket instance connected to the server.
      * @param delegate The connection delegate to handle events (such as IOException)
      */
-    public Connection(Socket connection, ConnectionDelegate delegate) {
+    public Connection(Socket connection, ConnectionDelegate delegate) throws IOException {
+        this.logger = new Logger("Connection-" + ++connections);
         this.connection = connection;
         this.delegate = delegate;
+        this.in = connection.getInputStream();
+        this.out = connection.getOutputStream();
 
-        try {
-            this.in = new DataInputStream(connection.getInputStream());
-            this.out = new DataOutputStream(connection.getOutputStream());
-        } catch(IOException ex) {
-            this.delegate.handleIOException(ex);
-        }
-
-        delegate.logger.log("New server connection.");
+        logger.log("New server connection.");
     }
 
     @Override
     public void run() {
-
-    }
-
-    /**
-     * Parse the incoming request.
-     */
-    public void parse(InputStream input) throws ProtocolException, IOException {
-        // Interesting use of the Scanner on the input stream.
-        Scanner data = new Scanner(input);
-        Protocol protocol = new Protocol();
-        Pattern rawDelimiter = Pattern.compile("^>{3}.*");
-        data.useDelimiter(" "); // Split the arguments by space
-
-        // Loop over each
-        int i = 0, position = 0; String chunk; boolean consuming = true;
-        while(consuming && i++ >= 0) {
-            // We have raw bytes, stop the argument pushing and push stream
-            if(data.hasNext()) {
-                chunk = data.next();
-
-                // Move the character pointer to the current
-                position += chunk.length();
-
-                // The first item is the command
-                if(i == 1) protocol.handleCommand(chunk);
-                // Test of the first three characters to see if they match ">>>" i.e. raw data
-                // for some reason, hasNext(pattern) wouldn't work
-                else if(rawDelimiter.matcher(chunk).matches()) {
-                    position += 3; // Account for the 3 >>>
-                    input.
-                }
-                // Anything thereafter is an argument
-                else protocol.handleArgument(chunk);
-            } else consuming = false;
+        try {
+            // Start the request parsing in it's own thread
+            // to allow for more connections
+            parse(in, out);
+        } catch (Protocol.ProtocolException e) {
+            delegate.handleProtocolException(e);
+        } catch (IOException e) {
+            delegate.handleIOException(e);
         }
     }
 
     /**
-     * The command was a success, close the connection with
-     * an `OK`.
+     * Parse and execute the incoming request.
      */
-    public void success() {
+    public void parse(InputStream input, OutputStream out) throws Protocol.ProtocolException, IOException {
+        logger.log("Parsing incoming request.");
 
-    }
+        // Parse the request
+        Protocol request = Parser.parse(input, out);
 
-    /**
-     * The command failed, close the connection with an
-     * `ERROR <message>`.
-     */
-    public void fail(String message) {
+        logger.log("Executing request.");
 
-    }
+        // Execute the request (or command) however the protocol decided.
+        request.execute();
 
-    public class ProtocolException extends Exception {
-        public ProtocolException() { super(); }
-        public ProtocolException(String message) { super(message); }
-        public ProtocolException(String message, Throwable cause) { super(message, cause); }
-        public ProtocolException(Throwable cause) { super(cause); }
+        logger.log("Request complete. Closing connection.");
+
+        // Close the connection
+        out.close(); connections--;
     }
 }
